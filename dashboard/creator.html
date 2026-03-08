@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vortex — Creator Panel</title>
+<script src="/socket.io/socket.io.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&family=JetBrains+Mono:wght@400;600&display=swap');
+
+:root {
+  --cosmos:#02030d; --deep:#050818; --void:#080d20;
+  --layer1:#0c1228; --card-bg:rgba(12,18,40,.85);
+  --vx-core:#a78bfa; --vx-ring:#7c6ff7; --vx-outer:#4f46e5;
+  --sun:#fbbf24; --green:#34d399; --red:#f87171; --amber:#fbbf24;
+  --t0:#f0f4ff; --t1:#94a3c8; --t2:#3d5278;
+  --card-rim:rgba(124,111,247,.18); --card-rim2:rgba(124,111,247,.38);
+  --input-bg:rgba(5,8,24,.88);
+  --r:8px; --r2:14px;
+  --mono:'JetBrains Mono',monospace;
+  --sans:'DM Sans',sans-serif; --head:'Syne',sans-serif;
+  --shadow:0 8px 32px rgba(0,0,0,.55);
+  --glow:0 0 24px rgba(124,111,247,.18);
+}
+
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--cosmos);color:var(--t0);font-family:var(--sans);font-size:13px;min-height:100vh;position:relative;}
+
+#space-canvas{position:fixed;inset:0;z-index:0;pointer-events:none;}
+
+.topbar{
+  background:rgba(2,3,13,.88);
+  border-bottom:1px solid rgba(124,111,247,.12);
+  padding:0 24px;height:56px;
+  display:flex;align-items:center;justify-content:space-between;
+  position:sticky;top:0;z-index:100;
+  backdrop-filter:blur(24px);
+  position:relative;
+}
+
+.topbar::after{
+  content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(124,111,247,.35) 40%,rgba(167,139,250,.4) 60%,transparent);
+}
+
+.logo{
+  font-family:var(--head);font-size:18px;font-weight:800;
+  letter-spacing:2px;display:flex;align-items:center;gap:10px;
+}
+
+.logo-txt{
+  background:linear-gradient(135deg,var(--t0) 0%,var(--vx-core) 60%,var(--vx-ring) 100%);
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;
+}
+
+.logo-vortex{width:24px;height:24px;}
+.logo-vortex svg{width:100%;height:100%;animation:vSpin 8s linear infinite;}
+@keyframes vSpin{to{transform:rotate(360deg);}}
+
+.logo-sub{font-size:8px;font-family:var(--mono);color:var(--t2);letter-spacing:1.5px;text-transform:uppercase;}
+
+.badge-owner{
+  padding:4px 14px;
+  background:rgba(251,191,36,.08);border:1px solid rgba(251,191,36,.22);
+  color:var(--amber);border-radius:20px;
+  font-size:10px;font-weight:600;font-family:var(--head);letter-spacing:.5px;
+}
+
+.topbar-right{display:flex;align-items:center;gap:12px;}
+
+.btn-back{
+  background:rgba(12,18,40,.9);border:1px solid var(--card-rim);
+  color:var(--t1);padding:7px 16px;border-radius:var(--r);
+  cursor:pointer;font-size:12px;font-family:var(--sans);font-weight:500;
+  transition:all .15s;
+}
+.btn-back:hover{border-color:rgba(167,139,250,.4);color:var(--vx-core);}
+
+.content{padding:24px;max-width:1100px;margin:0 auto;position:relative;z-index:1;}
+
+.page-title{font-family:var(--head);font-size:22px;font-weight:800;color:var(--t0);margin-bottom:4px;display:flex;align-items:center;gap:10px;}
+.page-sub{font-size:12px;color:var(--t2);margin-bottom:26px;font-family:var(--mono);}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+
+.card{
+  background:var(--card-bg);border:1px solid var(--card-rim);
+  border-radius:var(--r2);padding:20px;
+  position:relative;overflow:hidden;backdrop-filter:blur(16px);
+  transition:border-color .22s;box-shadow:var(--shadow);
+}
+
+.card::before{
+  content:'';position:absolute;top:0;left:20%;right:20%;height:1px;
+  background:linear-gradient(90deg,transparent,rgba(124,111,247,.28),transparent);
+}
+
+.card:hover{border-color:var(--card-rim2);}
+
+.card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+.card-title{font-family:var(--head);font-size:13px;font-weight:700;color:var(--t0);letter-spacing:.2px;}
+
+.label{font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--t2);display:block;margin-bottom:5px;font-family:var(--head);}
+
+.input{background:var(--input-bg);border:1px solid rgba(124,111,247,.2);border-radius:var(--r);color:var(--t0);padding:9px 12px;font-size:12px;width:100%;outline:none;font-family:var(--sans);transition:border-color .15s,box-shadow .15s;}
+.input:focus{border-color:rgba(124,111,247,.55);box-shadow:0 0 0 3px rgba(124,111,247,.09);}
+.input::placeholder{color:var(--t2);}
+
+.select{background:var(--input-bg);border:1px solid rgba(124,111,247,.2);border-radius:var(--r);color:var(--t0);padding:9px 12px;font-size:12px;width:100%;outline:none;cursor:pointer;font-family:var(--sans);}
+
+.field{margin-bottom:14px;}
+.mono{font-family:var(--mono);}
+
+.btn{background:rgba(12,18,40,.9);border:1px solid var(--card-rim);color:var(--t1);padding:7px 14px;border-radius:var(--r);cursor:pointer;font-size:12px;font-weight:500;font-family:var(--sans);transition:all .15s;white-space:nowrap;}
+.btn:hover{border-color:rgba(167,139,250,.4);color:var(--vx-core);background:rgba(124,111,247,.1);}
+
+.btn-c{background:rgba(124,111,247,.1);border-color:rgba(124,111,247,.35);color:var(--vx-core);}
+.btn-c:hover{background:rgba(124,111,247,.2);border-color:var(--vx-ring);box-shadow:var(--glow);}
+
+.btn-g{background:rgba(52,211,153,.08);border-color:rgba(52,211,153,.28);color:var(--green);}
+.btn-g:hover{background:rgba(52,211,153,.16);border-color:rgba(52,211,153,.55);}
+
+.btn-r{background:rgba(248,113,113,.08);border-color:rgba(248,113,113,.28);color:var(--red);}
+.btn-r:hover{background:rgba(248,113,113,.16);border-color:rgba(248,113,113,.55);}
+
+.btn-sm{padding:4px 10px;font-size:11px;}
+
+.key-card{padding:13px 15px;background:rgba(5,8,24,.8);border-radius:var(--r);border:1px solid var(--card-rim);margin-bottom:9px;transition:border-color .15s;}
+.key-card:hover{border-color:var(--card-rim2);}
+
+.bl-card{padding:11px 15px;background:rgba(5,8,24,.8);border-radius:var(--r);border:1px solid rgba(248,113,113,.18);margin-bottom:9px;}
+
+.badge-pill{padding:2px 9px;border-radius:20px;font-size:10px;font-weight:600;display:inline-block;font-family:var(--mono);}
+.pill-active{background:rgba(124,111,247,.12);color:var(--vx-core);border:1px solid rgba(124,111,247,.28);}
+.pill-dispo{background:rgba(251,191,36,.08);color:var(--amber);border:1px solid rgba(251,191,36,.22);}
+.pill-exp{background:rgba(248,113,113,.08);color:var(--red);border:1px solid rgba(248,113,113,.22);}
+.pill-bl{background:rgba(248,113,113,.08);color:var(--red);border:1px solid rgba(248,113,113,.22);}
+
+#new-key-box{display:none;margin-top:16px;padding:16px;background:rgba(124,111,247,.06);border:1px solid rgba(124,111,247,.2);border-radius:var(--r);text-align:center;}
+#new-key-val{font-size:16px;font-weight:700;color:var(--vx-core);letter-spacing:2px;cursor:pointer;font-family:var(--mono);}
+
+.toast-wrap{position:fixed;bottom:20px;right:20px;display:flex;flex-direction:column;gap:8px;z-index:9999;}
+.toast{padding:10px 16px;border-radius:var(--r2);font-size:12px;font-weight:500;font-family:var(--sans);min-width:200px;animation:toastIn .25s cubic-bezier(.34,1.56,.64,1);backdrop-filter:blur(20px);}
+.toast.success{background:rgba(52,211,153,.08);border:1px solid rgba(52,211,153,.25);color:var(--green);}
+.toast.error{background:rgba(248,113,113,.08);border:1px solid rgba(248,113,113,.25);color:var(--red);}
+
+.empty{text-align:center;padding:24px;color:var(--t2);font-size:12px;}
+
+::-webkit-scrollbar{width:3px;}
+::-webkit-scrollbar-thumb{background:rgba(124,111,247,.22);border-radius:2px;}
+
+@keyframes toastIn{from{opacity:0;transform:translateX(16px) scale(.97);}to{opacity:1;transform:none;}}
+
+  /* Layout fullscreen creator */
+  body { min-height: 100vh; }
+  .content { width: 100%; max-width: 100%; padding: 22px 28px; }
+  .grid2 { width: 100%; }
+  .card  { width: 100%; }
+  
+  /* Key + blacklist prennent tout l'espace */
+  .key-card, .bl-card { width: 100%; }
+
+
+  /* Fullscreen creator */
+  html, body { min-height: 100vh; }
+  #space-canvas { position: fixed !important; inset: 0 !important; z-index: 0 !important; pointer-events: none !important; }
+  .topbar { position: sticky; top: 0; z-index: 100; }
+  .content { position: relative; z-index: 1; width: 100%; max-width: 100%; box-sizing: border-box; }
+  .grid2 { width: 100%; }
+
+</style>
+</head>
+<body>
+
+<canvas id="space-canvas"></canvas>
+<script>
+(function(){
+  const C=document.getElementById('space-canvas');
+  const ctx=C.getContext('2d');
+  let W,H,stars=[],t=0;
+  function resize(){
+    W=C.width=window.innerWidth; H=C.height=window.innerHeight;
+    stars=[];
+    for(let i=0;i<250;i++) stars.push({x:Math.random()*W,y:Math.random()*H,r:Math.random()*1.2+.2,a:Math.random()*.8+.15,tw:Math.random()*3+2,ph:Math.random()*Math.PI*2});
+  }
+  function frame(){
+    t++;
+    ctx.clearRect(0,0,W,H);
+    const bg=ctx.createRadialGradient(W*.6,H*.3,0,W*.5,H*.5,Math.max(W,H)*.8);
+    bg.addColorStop(0,'#07081c'); bg.addColorStop(.5,'#04050e'); bg.addColorStop(1,'#020308');
+    ctx.fillStyle=bg; ctx.fillRect(0,0,W,H);
+    // Nébuleuse violette (fond droite)
+    const ng=ctx.createRadialGradient(W*.8,H*.25,0,W*.8,H*.25,W*.35);
+    ng.addColorStop(0,'rgba(124,111,247,.07)'); ng.addColorStop(1,'rgba(124,111,247,0)');
+    ctx.fillStyle=ng; ctx.fillRect(0,0,W,H);
+    // Étoiles
+    stars.forEach(s=>{
+      const a=s.a*(0.5+0.5*Math.sin(t/s.tw+s.ph));
+      ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,Math.PI*2);
+      ctx.fillStyle=`rgba(240,244,255,${a})`; ctx.fill();
+    });
+    // Vortex coin bas gauche
+    const vx=W*.08, vy=H*.85;
+    for(let a=0;a<3;a++){
+      const off=(a/3)*Math.PI*2;
+      for(let i=0;i<150;i++){
+        const fr=i/150, angle=fr*2.5*Math.PI*2+off+t*.01, rad=fr*Math.min(W,H)*.2;
+        ctx.beginPath(); ctx.arc(vx+Math.cos(angle)*rad, vy+Math.sin(angle)*rad*.4, 1*(1-fr*.5),0,Math.PI*2);
+        ctx.fillStyle=`hsla(${265+fr*50},75%,72%,${(1-fr)*.12})`; ctx.fill();
+      }
+    }
+    // Soleil haut droite
+    const sx=W*.88,sy=H*.1,sr=28;
+    const sg=ctx.createRadialGradient(sx-sr*.3,sy-sr*.3,2,sx,sy,sr);
+    sg.addColorStop(0,'#fef9c3'); sg.addColorStop(.3,'#fde68a'); sg.addColorStop(.7,'#fbbf24'); sg.addColorStop(1,'#b45309');
+    ctx.save(); ctx.shadowColor='rgba(251,191,36,.8)'; ctx.shadowBlur=sr*2;
+    ctx.beginPath(); ctx.arc(sx,sy,sr,0,Math.PI*2); ctx.fillStyle=sg; ctx.fill(); ctx.restore();
+    // Halo soleil
+    ctx.save(); ctx.globalAlpha=0.05+.025*Math.sin(t*.025);
+    const sh=ctx.createRadialGradient(sx,sy,sr,sx,sy,sr*3.2);
+    sh.addColorStop(0,'rgba(251,191,36,.4)'); sh.addColorStop(1,'rgba(251,191,36,0)');
+    ctx.beginPath(); ctx.arc(sx,sy,sr*3.2,0,Math.PI*2); ctx.fillStyle=sh; ctx.fill(); ctx.restore();
+    requestAnimationFrame(frame);
+  }
+  window.addEventListener('resize',resize); resize(); frame();
+})();
+</script>
+
+<div class="topbar">
+  <div style="display:flex;align-items:center;gap:14px;">
+    <div>
+      <div class="logo">
+        <div class="logo-vortex">
+          <svg viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="20" cy="20" r="18" stroke="rgba(124,111,247,.3)" stroke-width="1"/>
+            <circle cx="20" cy="20" r="12" stroke="rgba(167,139,250,.4)" stroke-width=".8"/>
+            <ellipse cx="20" cy="20" rx="18" ry="6" stroke="rgba(124,111,247,.45)" stroke-width=".9"/>
+            <ellipse cx="20" cy="20" rx="12" ry="4" stroke="rgba(167,139,250,.55)" stroke-width=".7"/>
+            <circle cx="20" cy="20" r="2.5" fill="rgba(220,210,255,.95)"/>
+          </svg>
+        </div>
+        <span class="logo-txt">VORTEX</span>
+      </div>
+      <div class="logo-sub">Creator Panel</div>
+    </div>
+    <div class="badge-owner">✦ Owner</div>
+  </div>
+  <div class="topbar-right">
+    <span id="bot-tag" style="font-family:var(--mono);font-size:11px;color:var(--t1);"></span>
+    <button class="btn-back" onclick="window.location='/'">← Dashboard</button>
+  </div>
+</div>
+<div class="content">
+  <div class="page-title">✦ Creator Panel</div>
+  <div class="page-sub">// gestion VIP &amp; blacklist — accès owner uniquement</div>
+
+  <div class="grid2">
+
+    <!-- COLONNE GAUCHE : Clés VIP -->
+    <div style="display:flex;flex-direction:column;gap:14px;">
+
+      <!-- Générer une clé -->
+      <div class="card" style="border-color:rgba(255,215,0,.2);">
+        <div class="card-head">
+          <div class="card-title">🗝️ Générer une clé VIP</div>
+        </div>
+        <div class="field">
+          <label class="label">LABEL (pour qui c'est)</label>
+          <input class="input" id="gen-label" placeholder="Ex: MonAmi01">
+        </div>
+        <div class="field">
+          <label class="label">DURÉE</label>
+          <select class="select" id="gen-duration">
+            <option value="7">7 jours</option>
+            <option value="30">30 jours</option>
+            <option value="90">90 jours</option>
+            <option value="365">1 an</option>
+            <option value="0">Permanent ∞</option>
+          </select>
+        </div>
+        <button class="btn btn-c" style="width:100%;padding:9px;background:linear-gradient(135deg,rgba(255,215,0,.12),rgba(255,165,0,.08));border-color:rgba(255,215,0,.3);color:#ffd700;" onclick="generateKey()">✨ Générer la clé</button>
+        <div id="new-key-box">
+          <div style="font-size:10px;color:var(--t2);margin-bottom:8px;">Nouvelle clé — clique pour copier</div>
+          <div id="new-key-val" onclick="copyKey(this.textContent)" title="Cliquer pour copier"></div>
+          <div style="font-size:10px;color:var(--t2);margin-top:6px;">⚠️ Copie-la maintenant</div>
+        </div>
+      </div>
+
+      <!-- Liste clés -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">🗝️ Clés VIP (<span id="keys-count">0</span>)</div>
+          <button class="btn btn-c" onclick="loadKeys()" style="font-size:11px;padding:4px 10px;">↺</button>
+        </div>
+        <div id="keys-list"><div class="empty">Chargement...</div></div>
+      </div>
+    </div>
+
+    <!-- COLONNE DROITE : Blacklist -->
+    <div style="display:flex;flex-direction:column;gap:14px;">
+
+      <!-- Ajouter blacklist -->
+      <div class="card" style="border-color:rgba(242,63,67,.2);">
+        <div class="card-head">
+          <div class="card-title">🚫 Ajouter à la Blacklist</div>
+        </div>
+        <div class="field">
+          <label class="label">USER ID DISCORD</label>
+          <input class="input mono" id="bl-id" placeholder="123456789012345678">
+        </div>
+        <div class="field">
+          <label class="label">RAISON (optionnel)</label>
+          <input class="input" id="bl-reason" placeholder="spam, abus...">
+        </div>
+        <button class="btn btn-r" style="width:100%;padding:9px;" onclick="addBlacklist()">🚫 Blacklister</button>
+      </div>
+
+      <!-- Liste blacklist -->
+      <div class="card">
+        <div class="card-head">
+          <div class="card-title">🚫 Blacklist (<span id="bl-count">0</span>)</div>
+          <button class="btn btn-c" onclick="loadBlacklist()" style="font-size:11px;padding:4px 10px;">↺</button>
+        </div>
+        <div id="bl-list"><div class="empty">Chargement...</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toasts"></div>
+
+<script>
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+async function api(path, method='GET', body=null) {
+  const opts = { method, headers: {'Content-Type':'application/json'} };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch('/api' + path, opts);
+  const d = await r.json();
+  if (!r.ok) throw new Error(d.error || 'Erreur');
+  return d;
+}
+
+function toast(msg, type='success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  document.getElementById('toasts').appendChild(el);
+  setTimeout(() => el.remove(), 3000);
+}
+
+function copyKey(key) {
+  navigator.clipboard.writeText(key.trim()).then(() => toast('Clé copiée ✓'));
+}
+
+// ── Clés VIP ─────────────────────────────────────────────
+async function loadKeys() {
+  try {
+    const keys = await api('/creator/keys');
+    const el   = document.getElementById('keys-list');
+    document.getElementById('keys-count').textContent = keys.length;
+    if (!keys.length) { el.innerHTML = '<div class="empty">Aucune clé générée</div>'; return; }
+    el.innerHTML = keys.map(k => {
+      const isPerm = !k.expiresAt;
+      const badge  = k.expired
+        ? `<span class="badge-pill pill-exp">Expirée</span>`
+        : k.used
+          ? `<span class="badge-pill pill-active">Active</span>`
+          : `<span class="badge-pill pill-dispo">Disponible</span>`;
+      const expiry = isPerm ? '∞ Permanent' : k.expired ? 'Expirée' : `${k.daysLeft}j restants`;
+      return `<div class="key-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            ${badge}
+            <span class="mono" style="font-size:12px;font-weight:700;color:${k.expired?'var(--red)':k.used?'var(--vx-core, #a78bfa)':'#ffd700'};cursor:pointer;" onclick="copyKey('${esc(k.key)}')" title="Copier">${esc(k.key)}</span>
+          </div>
+          <button class="btn btn-r" onclick="revokeKey('${esc(k.key)}')" style="font-size:11px;padding:3px 8px;">✕ Révoquer</button>
+        </div>
+        <div style="display:flex;gap:14px;font-size:11px;color:var(--t2);">
+          <span>🏷️ ${esc(k.label||'Sans label')}</span>
+          <span>⏱ ${expiry}</span>
+          ${k.used ? `<span>👤 <span class="mono">${esc(k.activatedBy||'')}</span></span>` : ''}
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function generateKey() {
+  const label    = document.getElementById('gen-label').value.trim() || 'Sans label';
+  const duration = parseInt(document.getElementById('gen-duration').value);
+  try {
+    const r = await api('/creator/keys/create', 'POST', { label, durationDays: duration });
+    document.getElementById('gen-label').value = '';
+    const box = document.getElementById('new-key-box');
+    const val = document.getElementById('new-key-val');
+    val.textContent = r.key;
+    box.style.display = 'block';
+    toast('Clé générée ✓ — copie-la !');
+    loadKeys();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function revokeKey(key) {
+  try {
+    await api('/creator/keys/' + encodeURIComponent(key), 'DELETE');
+    toast('Clé révoquée');
+    loadKeys();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Blacklist ─────────────────────────────────────────────
+async function loadBlacklist() {
+  try {
+    const list = await api('/creator/blacklist');
+    const el   = document.getElementById('bl-list');
+    document.getElementById('bl-count').textContent = list.length;
+    if (!list.length) { el.innerHTML = '<div class="empty">Aucun utilisateur blacklisté</div>'; return; }
+    el.innerHTML = list.map(b => `
+      <div class="bl-card">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="badge-pill pill-bl">Blacklisté</span>
+            <span class="mono" style="font-size:12px;font-weight:700;color:var(--red);">${esc(b.id)}</span>
+          </div>
+          <button class="btn btn-g" onclick="removeBlacklist('${esc(b.id)}')" style="font-size:11px;padding:3px 8px;">✓ Retirer</button>
+        </div>
+        <div style="font-size:11px;color:var(--t2);display:flex;gap:12px;">
+          ${b.reason ? `<span>💬 ${esc(b.reason)}</span>` : ''}
+          ${b.addedAt ? `<span>📅 ${new Date(b.addedAt).toLocaleDateString('fr-FR')}</span>` : ''}
+        </div>
+      </div>`).join('');
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function addBlacklist() {
+  const id     = document.getElementById('bl-id').value.trim();
+  const reason = document.getElementById('bl-reason').value.trim();
+  if (!id) { toast('Entre un User ID', 'error'); return; }
+  try {
+    await api('/creator/blacklist/add', 'POST', { userId: id, reason });
+    document.getElementById('bl-id').value = '';
+    document.getElementById('bl-reason').value = '';
+    toast('Utilisateur blacklisté');
+    loadBlacklist();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+async function removeBlacklist(id) {
+  try {
+    await api('/creator/blacklist/' + id, 'DELETE');
+    toast('Retiré de la blacklist');
+    loadBlacklist();
+  } catch(e) { toast(e.message, 'error'); }
+}
+
+// ── Init ─────────────────────────────────────────────────
+async function init() {
+  // Vérifier accès owner
+  try {
+    const s = await api('/owner/status');
+    if (!s.isOwner) { window.location = '/'; return; }
+    // Récupérer info bot
+    const bot = await api('/bot/info').catch(()=>null);
+    if (bot?.tag) document.getElementById('bot-tag').textContent = bot.tag;
+  } catch { window.location = '/'; return; }
+  loadKeys();
+  loadBlacklist();
+}
+
+init();
+</script>
+</body>
+</html>
